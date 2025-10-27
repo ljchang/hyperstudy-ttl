@@ -1,77 +1,88 @@
 # HyperStudy TTL
 
-A project to trigger a TTL pulse on a Feather RP2040 over WebUSB using a browser.
+RP2040-based TTL pulse generator for HyperStudy experiments with electrical isolation via optocoupler.
+
+## Architecture
+
+```
+HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) → TTL Output
+```
+
+This repository contains the **RP2040 firmware** that receives trigger commands from [hyperstudy-bridge](https://github.com/cosanlab/hyperstudy-bridge) and generates electrically-isolated 10ms TTL pulses for external equipment.
 
 ## Features
 
-- WebUSB interface for in-browser triggering
-- Optocoupler-isolated TTL pulse
-- Custom landing page on GitHub Pages
+- **Fast & Reliable:** <1ms latency via USB serial communication
+- **Electrical Isolation:** HCPL-2211 optocoupler protects both devices
+- **Bridge Compatible:** Response format matches hyperstudy-bridge parser expectations
+- **Easy Setup:** PlatformIO-based firmware with comprehensive installation docs
 
-## Setup
+## Quick Start
 
-### Flash the Firmware
-
-1. Install [PlatformIO](https://platformio.org/)
-2. Connect the Feather RP2040
-3. Run:
+### 1. Install Firmware
 
 ```bash
 cd firmware
 pio run --target upload
 ```
 
-### Serve the Landing Page
+### 2. Test Connection
 
-This repo is configured to work with GitHub Pages.
+```bash
+pio device monitor
+```
 
-- URL: https://cosanlab.github.io/hyperstudy-ttl/web
+Type `PULSE` and press Enter. The device should respond with `OK:Pulse sent`.
 
-### Use It
+### 3. Full Setup
 
-1. Visit the landing page
-2. Click “Connect”
-3. Click “Send TTL Pulse”
+See **[INSTALLATION.md](./INSTALLATION.md)** for complete instructions including:
+- Hardware assembly and optocoupler wiring
+- Bridge integration and configuration
+- TriggerComponent setup in HyperStudy
+- Troubleshooting guide
 
-## Wiring Guide
+## Hardware
 
-🔌 Step-by-Step Wiring Guide
+- **Microcontroller:** Adafruit Feather RP2040
+- **Optocoupler:** HCPL-2211 (for isolation)
+- **Pulse Output:** GPIO Pin 5 (10ms HIGH pulse)
+- **Communication:** USB serial, 115200 baud
+- **USB Identification:** VID: `0x239A`, PID: `0x80F1`
 
-🟦 1. Power Rails
-• Red Breadboard Rail (3.3V) ← Connect from Feather 3.3V pin
-• Blue Breadboard Rail (GND) ← Connect from Feather GND pin
-• Create a second isolated power rail for the HCPL output side:
-• Use Feather’s USB pin (5V) to power the output Vcc
-• Use a second GND rail for the isolated side
+See [OPTOCOUPLER_WIRING.md](./OPTOCOUPLER_WIRING.md) for detailed wiring instructions.
 
-🧠 The input and output grounds must be separate to maintain isolation!
+## Commands
 
-⸻
+The firmware accepts case-insensitive serial commands:
 
-🔶 2. Input Side (Feather → HCPL-2211)
-• GPIO pin (e.g. D4) → One leg of 330Ω resistor
-• Other leg of resistor → HCPL-2211 Pin 2 (Anode)
-• HCPL-2211 Pin 3 (Cathode) → Feather GND
+| Command | Response | Description |
+|---------|----------|-------------|
+| `PULSE` | `OK:Pulse sent` | Triggers 10ms TTL pulse |
+| `TEST` | `OK:Test successful` | Connection validation |
+| `VERSION` | `OK:Version 1.0.2` | Firmware version query |
 
-✅ This drives the optocoupler’s internal LED when D5 is HIGH.
+## Device Discovery
 
-⸻
+The device can be reliably found by USB VID/PID, regardless of which port macOS assigns:
 
-🔷 3. Output Side (HCPL-2211 → BNC Trigger)
-• HCPL-2211 Pin 8 → 5V rail (from Feather’s USB pin or other 5V source)
-• HCPL-2211 Pin 5 → GND (isolated side) (do NOT connect to Feather GND!)
-• HCPL-2211 Pin 6 (Output) → BNC center pin
-• BNC shield (outer) → Isolated GND rail
+```python
+# Find device by VID/PID (works with any HyperStudy TTL device)
+python3 testing/find_ttl_port.py
+```
 
-⚡ Now, when the Feather sends a signal, the HCPL output drives a 5V TTL pulse to the BNC — fully isolated!
+This returns the current port path (e.g., `/dev/cu.usbmodem2101`).
 
-⸻
+## Alternative Implementations
 
-✅ Final Notes
-• Add a 0.1 µF capacitor between HCPL pins 8 and 5 (Vcc/GND) near the chip.
-• Keep the signal wires short and clean.
-• Check the BNC pinout — center is signal, outer is ground.
+Alternative firmwares (Arduino IDE, CircuitPython) are provided in `/examples` for reference but are **not recommended** for production use as they may not be fully compatible with hyperstudy-bridge.
 
-## Circuit Python
+## Documentation
 
-https://circuitpython.org/board/adafruit_feather_rp2040/
+- **[INSTALLATION.md](./INSTALLATION.md)** - Complete setup guide with bridge integration
+- **[OPTOCOUPLER_WIRING.md](./OPTOCOUPLER_WIRING.md)** - Detailed optocoupler wiring instructions
+- **[CLAUDE.md](./CLAUDE.md)** - Developer notes and architecture details
+
+## Support
+
+For detailed user documentation on using TTL triggers in HyperStudy experiments, see the [HyperStudy documentation](https://github.com/cosanlab/hyperstudy).
