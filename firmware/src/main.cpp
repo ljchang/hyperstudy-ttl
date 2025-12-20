@@ -6,12 +6,15 @@
 #define PULSE_DURATION_MS 10
 
 // Firmware version for device identification
-#define FIRMWARE_VERSION "1.1.0"
+#define FIRMWARE_VERSION "1.3.0"
 
 void setup() {
-  // Initialize trigger pin: LOW = signal OFF, HIGH = signal ON (pulse active)
+  // Initialize trigger pin for OFF-to-ON pulse behavior
+  // HCPL-2211 has totem pole output (non-inverting, no pull-up needed):
+  // GPIO LOW -> LED OFF -> Output LOW (idle state)
+  // GPIO HIGH -> LED ON -> Output HIGH (pulse active)
   pinMode(TRIGGER_PIN, OUTPUT);
-  digitalWrite(TRIGGER_PIN, LOW);  // Start with signal OFF
+  digitalWrite(TRIGGER_PIN, LOW);  // Start with LED OFF (output LOW/idle)
 
   // Initialize USB Serial (compatible with hyperstudy-bridge)
   Serial.begin(115200);
@@ -36,19 +39,19 @@ void loop() {
     cmd.toUpperCase();  // Accept case-insensitive commands
 
     if (cmd == "PULSE") {
-      // Send TTL pulse: HIGH = signal ON
+      // Send TTL pulse: GPIO HIGH = LED ON = output HIGH (active)
       digitalWrite(TRIGGER_PIN, HIGH);
       delay(PULSE_DURATION_MS);
-      digitalWrite(TRIGGER_PIN, LOW);  // Return to signal OFF
+      digitalWrite(TRIGGER_PIN, LOW);  // Return to idle (output LOW)
 
       // Response format compatible with hyperstudy-bridge
       Serial.println("OK:Pulse sent");
 
     } else if (cmd == "LONGPULSE") {
-      // Long pulse for testing/visibility (1 second)
+      // Long pulse for testing/visibility (3 seconds)
       digitalWrite(TRIGGER_PIN, HIGH);
-      delay(1000);
-      digitalWrite(TRIGGER_PIN, LOW);
+      delay(3000);
+      digitalWrite(TRIGGER_PIN, LOW);  // Return to idle (output LOW)
       Serial.println("OK:Long pulse sent");
 
     } else if (cmd == "TEST") {

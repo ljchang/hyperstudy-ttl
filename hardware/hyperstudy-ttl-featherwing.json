@@ -1,0 +1,255 @@
+{
+  "projectName": "HyperStudy TTL FeatherWing",
+  "version": "1.0.0",
+  "description": "Isolated TTL output FeatherWing for Adafruit Feather RP2040",
+  "author": "HyperStudy Project",
+
+  "designSpecs": {
+    "boardWidth_mm": 22.86,
+    "boardLength_mm": 50.8,
+    "featherCompatible": true,
+    "isolationVoltage": "1kV"
+  },
+
+  "components": [
+    {
+      "ref": "U1",
+      "name": "HCPL-2211",
+      "description": "High-speed optocoupler with totem pole output",
+      "package": "DIP-8",
+      "lcsc": "C6933",
+      "digikey": "516-1059-5-ND",
+      "pins": {
+        "1": "NC",
+        "2": "Anode (LED+)",
+        "3": "Cathode (LED-)",
+        "4": "NC",
+        "5": "GND",
+        "6": "NC",
+        "7": "VO (Output)",
+        "8": "VCC"
+      }
+    },
+    {
+      "ref": "U2",
+      "name": "B0505S-1W",
+      "description": "1W isolated DC-DC converter 5V to 5V",
+      "package": "SIP-4",
+      "lcsc": "C87025",
+      "digikey": "945-1648-5-ND",
+      "pins": {
+        "1": "+Vin",
+        "2": "-Vin",
+        "3": "-Vout",
+        "4": "+Vout"
+      }
+    },
+    {
+      "ref": "R1",
+      "name": "Resistor",
+      "value": "220",
+      "unit": "ohm",
+      "tolerance": "5%",
+      "package": "0805",
+      "lcsc": "C17557",
+      "purpose": "LED current limiting (8mA at 3.3V input)"
+    },
+    {
+      "ref": "R2",
+      "name": "Resistor",
+      "value": "47",
+      "unit": "ohm",
+      "tolerance": "5%",
+      "package": "0805",
+      "lcsc": "C17714",
+      "purpose": "BNC impedance matching (50 ohm nominal)"
+    },
+    {
+      "ref": "C1",
+      "name": "Capacitor",
+      "value": "0.1",
+      "unit": "uF",
+      "voltage": "16V",
+      "type": "ceramic",
+      "package": "0805",
+      "lcsc": "C49678",
+      "purpose": "DC isolator input filter"
+    },
+    {
+      "ref": "C2",
+      "name": "Capacitor",
+      "value": "10",
+      "unit": "uF",
+      "voltage": "16V",
+      "type": "electrolytic",
+      "package": "radial_4x5mm",
+      "lcsc": "C19702",
+      "purpose": "DC isolator input bulk"
+    },
+    {
+      "ref": "C3",
+      "name": "Capacitor",
+      "value": "0.1",
+      "unit": "uF",
+      "voltage": "16V",
+      "type": "ceramic",
+      "package": "0805",
+      "lcsc": "C49678",
+      "purpose": "Optocoupler output bypass"
+    },
+    {
+      "ref": "C4",
+      "name": "Capacitor",
+      "value": "10",
+      "unit": "uF",
+      "voltage": "16V",
+      "type": "electrolytic",
+      "package": "radial_4x5mm",
+      "lcsc": "C19702",
+      "purpose": "Optocoupler output bulk"
+    },
+    {
+      "ref": "J1",
+      "name": "Pin Header Female",
+      "value": "1x16",
+      "pitch": "2.54mm",
+      "lcsc": "C2337",
+      "purpose": "Feather left header"
+    },
+    {
+      "ref": "J2",
+      "name": "Pin Header Female",
+      "value": "1x12",
+      "pitch": "2.54mm",
+      "lcsc": "C2334",
+      "purpose": "Feather right header"
+    },
+    {
+      "ref": "J3",
+      "name": "BNC Connector",
+      "type": "female",
+      "mounting": "PCB",
+      "lcsc": "C496553",
+      "purpose": "TTL output"
+    }
+  ],
+
+  "netlist": [
+    {
+      "net": "TRIGGER",
+      "nodes": ["J1.16", "R1.1"],
+      "description": "D4 (GP6) to current limiting resistor"
+    },
+    {
+      "net": "LED_ANODE",
+      "nodes": ["R1.2", "U1.2"],
+      "description": "Resistor to optocoupler LED anode"
+    },
+    {
+      "net": "GND",
+      "nodes": ["J1.4", "U1.3", "U2.2", "C1.2", "C2.2"],
+      "description": "Non-isolated ground"
+    },
+    {
+      "net": "VBUS",
+      "nodes": ["J2.3", "U2.1", "C1.1", "C2.1"],
+      "description": "USB 5V power input"
+    },
+    {
+      "net": "ISO_5V",
+      "nodes": ["U2.4", "U1.8", "C3.1", "C4.1"],
+      "description": "Isolated 5V supply"
+    },
+    {
+      "net": "ISO_GND",
+      "nodes": ["U2.3", "U1.5", "C3.2", "C4.2", "J3.GND"],
+      "description": "Isolated ground"
+    },
+    {
+      "net": "TTL_OUT_PRE",
+      "nodes": ["U1.7", "R2.1"],
+      "description": "Optocoupler output to series resistor"
+    },
+    {
+      "net": "TTL_OUT",
+      "nodes": ["R2.2", "J3.CENTER"],
+      "description": "BNC center pin (TTL signal)"
+    }
+  ],
+
+  "signalFlow": {
+    "idle": {
+      "gpio": "LOW",
+      "led": "OFF",
+      "output": "LOW (~0.3V)"
+    },
+    "pulse": {
+      "gpio": "HIGH",
+      "led": "ON",
+      "output": "HIGH (~3.9V)"
+    },
+    "pulseDuration_ms": 10,
+    "propagationDelay_ns": "150-300"
+  },
+
+  "featherPinMapping": {
+    "D4_GP6": {
+      "headerPin": "J1.16",
+      "function": "TTL Trigger Output",
+      "direction": "output"
+    },
+    "GND": {
+      "headerPin": "J1.4",
+      "function": "Ground Reference",
+      "direction": "-"
+    },
+    "VBUS": {
+      "headerPin": "J2.3",
+      "function": "USB 5V Power",
+      "direction": "input"
+    }
+  },
+
+  "isolationBarrier": {
+    "type": "galvanic",
+    "components": ["U1", "U2"],
+    "inputSide": ["J1", "J2", "R1", "C1", "C2"],
+    "outputSide": ["C3", "C4", "R2", "J3"],
+    "creepageDistance_mm": 2.0,
+    "isolationRating_V": 1000
+  },
+
+  "easyedaInstructions": [
+    "1. Create new project in EasyEDA",
+    "2. Create new schematic",
+    "3. Add components by searching LCSC part numbers",
+    "4. Place components in logical groups (input/output sides)",
+    "5. Connect nets according to netlist above",
+    "6. Add net labels for clarity",
+    "7. Run ERC (Electrical Rule Check)",
+    "8. Convert to PCB layout",
+    "9. Set board outline to FeatherWing dimensions",
+    "10. Place components with isolation barrier in mind",
+    "11. Route traces (keep isolation gap > 2mm)",
+    "12. Add ground planes if desired (separate for each side)",
+    "13. Run DRC (Design Rule Check)",
+    "14. Generate Gerbers for fabrication"
+  ],
+
+  "fabricationNotes": {
+    "recommendedPCB": {
+      "layers": 2,
+      "thickness_mm": 1.6,
+      "copperWeight_oz": 1,
+      "surfaceFinish": "HASL or ENIG",
+      "soldermask": "any color",
+      "silkscreen": "white"
+    },
+    "assemblyNotes": [
+      "Solder SMD components first (R1, R2, C1, C3)",
+      "Solder through-hole components (U1, U2, C2, C4)",
+      "Solder headers last (J1, J2)",
+      "BNC connector may require hand soldering or wire leads"
+    ]
+  }
+}

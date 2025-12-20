@@ -16,7 +16,7 @@ HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) →
 1. **TriggerComponent** (Svelte component in HyperStudy frontend) sends trigger request
 2. **hyperstudy-bridge** (Tauri app) receives WebSocket message on port 9000
 3. **Bridge TtlDevice** sends `b"PULSE\n"` via USB serial (115200 baud)
-4. **RP2040 firmware** (this repo) sets GPIO Pin 5 HIGH for 10ms
+4. **RP2040 firmware** (this repo) sets GPIO Pin 6 (D4) HIGH for 10ms
 5. **HCPL-2211 optocoupler** provides electrical isolation to external equipment
 
 ### Primary Firmware (firmware/src/main.cpp)
@@ -24,16 +24,17 @@ HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) →
 **PlatformIO-based C++ implementation** - This is the recommended production firmware.
 
 **Key specifications:**
-- GPIO Pin 5 for TTL output
+- GPIO Pin 6 (D4 on Feather RP2040) for TTL output
 - Signal logic: LOW = off, HIGH = pulse active (10ms)
 - USB serial: 115200 baud, newline-terminated commands
 - Response format: `OK:Message` (success) or `ERROR:Message` (failure)
 - USB identification: VID `0x239A`, PID `0x80F1` (for device discovery)
 
 **Supported commands:**
-- `PULSE` (case-insensitive) → Triggers pulse, responds `OK:Pulse sent`
+- `PULSE` (case-insensitive) → Triggers 10ms pulse, responds `OK:Pulse sent`
+- `LONGPULSE` → Triggers 3-second pulse for testing/visibility, responds `OK:Long pulse sent`
 - `TEST` → Connection test, responds `OK:Test successful`
-- `VERSION` → Returns firmware version, responds `OK:Version 1.0.0`
+- `VERSION` → Returns firmware version, responds `OK:Version 1.3.0`
 
 **Bridge compatibility requirements:**
 - Response format MUST match `OK:` prefix (bridge parses this)
@@ -67,6 +68,7 @@ These alternatives have different response formats and may not be fully compatib
 
 ```
 /firmware              # Primary PlatformIO firmware (PRODUCTION)
+/hardware              # PCB design files and schematics
 /examples              # Alternative implementations (REFERENCE ONLY)
   /arduino             # Arduino IDE version
   /circuitpython       # CircuitPython version
@@ -87,7 +89,9 @@ README.md              # Project overview
 ### Signal Logic
 - **LOW (0V)** = Signal OFF (idle state)
 - **HIGH (3.3V)** = Signal ON (pulse active)
-- Optocoupler inverts this to 5V TTL output
+- HCPL-2211 is **non-inverting** with totem pole output (no pull-up needed):
+  - GPIO LOW → LED OFF → TTL Output LOW (~0.3V)
+  - GPIO HIGH → LED ON → TTL Output HIGH (~3.9V)
 
 ### Electrical Isolation
 The HCPL-2211 optocoupler provides galvanic isolation between the RP2040 and external equipment. **Input and output grounds MUST be separate** for proper isolation.
