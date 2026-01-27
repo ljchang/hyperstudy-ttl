@@ -8,7 +8,7 @@
 //       * Bottom shell: Print as exported (floor on bed)
 //       * Top shell: FLIP UPSIDE DOWN in slicer (ceiling on bed, open side up)
 //   - Insert M2 nuts into hex pockets on bottom shell exterior
-//   - Assemble with 4x M2 screws (~25-30mm) through top shell, PCB, standoffs, into nuts
+//   - Assemble with 4x M2x30mm screws through top shell, PCB, standoffs, into nuts
 
 /* [PCB Dimensions] */
 // FeatherWing v1.1 PCB length (mm)
@@ -20,7 +20,7 @@ pcb_thickness = 1.6;
 // BNC connector extension past board edge (mm) - set to 0 so BNC protrudes outside case
 bnc_extension = 0;
 // Feather overhang past FeatherWing on USB end (mm)
-feather_extension = 5;
+feather_extension = 3.5;
 
 /* [Component Heights] */
 // Height above FeatherWing PCB for Feather RP2040 + headers (measured: 19.6mm to top)
@@ -31,8 +31,8 @@ component_height_bottom = 5;
 /* [Case Parameters] */
 // Wall thickness (mm)
 wall = 2.5;
-// Floor/ceiling thickness (mm) - 4mm to accommodate M2 nut pockets (2mm) with 2mm solid above
-floor_thickness = 4;
+// Floor/ceiling thickness (mm) - 5mm for solid bridging over nut pockets (2.5mm solid above pocket)
+floor_thickness = 5;
 // PCB clearance on each side (mm) - increased to accommodate support ribs
 pcb_clearance = 1.5;
 // Corner radius (mm)
@@ -41,12 +41,12 @@ corner_radius = 3;
 edge_chamfer = 0.8;
 
 /* [Screw Parameters] */
-// M2 screw clearance hole diameter (mm)
-screw_hole_diameter = 2.2;
-// M2 nut width across flats (mm) - actual is 4.0mm, add 0.5mm tolerance
-nut_width = 4.5;
-// M2 nut pocket depth (mm) - actual nut is 1.6mm thick
-nut_pocket_depth = 2.0;
+// M2 screw clearance hole diameter (mm) - oversized for FDM shrinkage
+screw_hole_diameter = 2.6;
+// M2 nut width across flats (mm) - actual is 4.0mm, add 1.0mm for FDM shrinkage
+nut_width = 5.0;
+// M2 nut pocket depth (mm) - actual nut is 1.6mm, extra depth for capture and clearance
+nut_pocket_depth = 2.5;
 
 /* [Connector Cutouts] */
 // USB-C port width (mm)
@@ -64,24 +64,12 @@ bnc_diameter = 13;
 // BNC connector vertical offset from shell interface (mm) - positive moves hole up
 bnc_offset_z = 2.65;
 
-/* [Rubber Feet] */
-// Rubber foot recess diameter (mm)
-foot_diameter = 10;
-// Rubber foot recess depth (mm) - reduced to preserve floor strength
-foot_depth = 1;
-// Foot offset toward center (mm) - moves feet away from case edges while still covering nuts
-// Max ~1.5mm with 10mm foot and 5.2mm nut pocket
-foot_center_offset = 1.5;
-
 /* [PCB Support Ribs] */
 // Enable PCB edge support ribs in top shell
 pcb_supports_enabled = true;
-// Rib thickness (mm) - how far rib extends from wall toward PCB (must be < pcb_clearance)
-pcb_support_width = 1.2;
-// Rib height from open edge (mm) - should reach beside PCB edge
-pcb_support_height = 5;
-// Gap between rib and PCB edge (mm) - clearance = pcb_clearance - pcb_support_width
-// Current: 1.5 - 1.2 = 0.3mm gap
+// Rib width (mm) - extends from wall over PCB edge, pressing down on PCB surface
+pcb_support_width = 4;
+// Ribs extend from pcb_rail_z_offset to ceiling (matching BNC corner posts)
 
 // Rail positioning - runs along Feather section only (avoids FeatherWing components)
 // Start after USB-side screw holes, run along where Feather sits
@@ -136,7 +124,7 @@ fw_hole_diameter = 2.032;         // M2 clearance holes in PCB
 
 // Standoff parameters (sized for M2 screws)
 standoff_diameter = 5;
-standoff_hole_diameter = 2.2;     // M2 clearance hole (screw passes through to nut below)
+standoff_hole_diameter = 2.6;     // M2 clearance hole - oversized for FDM shrinkage
 standoff_height = component_height_bottom + 0.3;  // Height to support PCB (+0.3mm margin so PCB doesn't rub lid)
 pcb_bnc_offset = 0.8;             // Extra clearance between PCB/standoffs and BNC end (mm)
 
@@ -190,12 +178,6 @@ module bottom_shell() {
         translate([wall, wall, floor_thickness])
             rounded_box(case_inner_length + bnc_extension, case_inner_width,
                        case_height_bottom, corner_radius - wall/2);
-
-        // Rubber feet recesses
-        for (pos = foot_positions()) {
-            translate([pos[0], pos[1], -0.1])
-                cylinder(d = foot_diameter, h = foot_depth + 0.1);
-        }
 
         // M2 hex nut pockets on exterior bottom (beneath standoffs)
         // Hex pocket holds nut while screw tightens from top
@@ -283,17 +265,17 @@ module top_shell() {
         // Rails along Feather section only - avoids FeatherWing components
         // Z offset allows PCB to sit flush or slightly inset at the open edge
         if (pcb_supports_enabled) {
-            // Left rib (low Y side) - extends from wall into cavity
+            // Left rib (low Y side) - wall to ceiling, presses down on PCB
             translate([pcb_rail_start, wall - 1, pcb_rail_z_offset])
                 cube([pcb_rail_length,
                       pcb_support_width + 1,
-                      pcb_support_height]);
-            // Right rib (high Y side) - extends from wall into cavity
+                      case_height_top - wall - pcb_rail_z_offset]);
+            // Right rib (high Y side) - wall to ceiling, presses down on PCB
             translate([pcb_rail_start,
                       case_outer_width - wall - pcb_support_width, pcb_rail_z_offset])
                 cube([pcb_rail_length,
                       pcb_support_width + 1,
-                      pcb_support_height]);
+                      case_height_top - wall - pcb_rail_z_offset]);
         }
 
         // BNC-side support ribs (between BNC cutout and screw holes)
@@ -324,13 +306,6 @@ function standoff_positions() = [
         for (dy = [fw_hole_inset_y, fw_hole_inset_y + fw_hole_spacing_y])
             [wall + pcb_clearance + feather_extension + dx - pcb_bnc_offset,
              wall + pcb_clearance + dy]
-];
-
-// Function: Rubber foot positions (offset toward center from standoffs, still covering nut pockets)
-function foot_positions() = [
-    for (pos = standoff_positions())
-        [pos[0] + (pos[0] < total_case_length/2 ? foot_center_offset : -foot_center_offset),
-         pos[1] + (pos[1] < case_outer_width/2 ? foot_center_offset : -foot_center_offset)]
 ];
 
 // Render selection - uncomment one to export
