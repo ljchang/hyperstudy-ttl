@@ -43,10 +43,14 @@ edge_chamfer = 0.8;
 /* [Screw Parameters] */
 // M2 screw clearance hole diameter (mm) - oversized for FDM shrinkage
 screw_hole_diameter = 2.6;
-// M2 nut width across flats (mm) - actual is 4.0mm, add 1.0mm for FDM shrinkage
-nut_width = 5.0;
+// M2 nut width across flats (mm) - actual is 4.0mm, add 0.7mm for FDM shrinkage
+nut_width = 4.7;
 // M2 nut pocket depth (mm) - actual nut is 1.6mm, extra depth for capture and clearance
 nut_pocket_depth = 2.5;
+// M2 pan head counterbore diameter (mm) - head is ~4mm, add tolerance
+counterbore_diameter = 4.5;
+// M2 pan head counterbore depth (mm) - head is ~2mm, add 0.5mm for flush/recess
+counterbore_depth = 2.5;
 
 /* [Connector Cutouts] */
 // USB-C port width (mm)
@@ -241,11 +245,12 @@ module top_shell() {
 
         // M2 screw holes (aligned with standoffs/PCB mounting holes)
         for (pos = standoff_positions()) {
+            // Shaft clearance hole through ceiling
             translate([pos[0], pos[1], case_height_top - wall - 0.1])
                 cylinder(d = screw_hole_diameter, h = wall + 0.2);
-            // Countersink for M2 screw head
-            translate([pos[0], pos[1], case_height_top - 1.5])
-                cylinder(d1 = screw_hole_diameter, d2 = screw_hole_diameter + 2, h = 1.6);
+            // Counterbore for pan head (2mm head height + 0.5mm recess)
+            translate([pos[0], pos[1], case_height_top - counterbore_depth])
+                cylinder(d = counterbore_diameter, h = counterbore_depth + 0.1);
         }
 
         // Logo emboss (debossed into top surface) - DISABLED until case design finalized
