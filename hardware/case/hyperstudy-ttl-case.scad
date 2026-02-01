@@ -8,7 +8,7 @@
 //       * Bottom shell: Print as exported (floor on bed)
 //       * Top shell: FLIP UPSIDE DOWN in slicer (ceiling on bed, open side up)
 //   - Insert M2 nuts into hex pockets on bottom shell exterior
-//   - Assemble with 4x M2x30mm screws through top shell, PCB, standoffs, into nuts
+//   - Assemble with 4x M2x35mm pan head screws through top shell, PCB, standoffs, into nuts
 
 /* [PCB Dimensions] */
 // FeatherWing v1.1 PCB length (mm)
@@ -31,8 +31,11 @@ component_height_bottom = 5;
 /* [Case Parameters] */
 // Wall thickness (mm)
 wall = 2.5;
-// Floor/ceiling thickness (mm) - 5mm for solid bridging over nut pockets (2.5mm solid above pocket)
-floor_thickness = 5;
+// Floor thickness (mm) - 6mm for solid bridging over nut pockets (3.5mm solid above pocket)
+floor_thickness = 6;
+// Top shell ceiling thickness (mm) - needs enough material for counterbore + shaft shelf
+// For M2 pan head: 2mm counterbore + 1.5mm shelf = 3.5mm minimum
+ceiling_thickness = 3.5;
 // PCB clearance on each side (mm) - increased to accommodate support ribs
 pcb_clearance = 1.5;
 // Corner radius (mm)
@@ -49,8 +52,8 @@ nut_width = 4.7;
 nut_pocket_depth = 2.5;
 // M2 pan head counterbore diameter (mm) - head is ~4mm, add tolerance
 counterbore_diameter = 4.5;
-// M2 pan head counterbore depth (mm) - head is ~2mm, add 0.5mm for flush/recess
-counterbore_depth = 2.5;
+// M2 pan head counterbore depth (mm) - head is ~2mm, flush fit
+counterbore_depth = 2.0;
 
 /* [Connector Cutouts] */
 // USB-C port width (mm)
@@ -111,7 +114,7 @@ case_inner_width = pcb_width + 2 * pcb_clearance;
 case_outer_length = case_inner_length + 2 * wall;
 case_outer_width = case_inner_width + 2 * wall;
 case_height_bottom = component_height_bottom + floor_thickness;
-case_height_top = component_height_top + wall + pcb_thickness;
+case_height_top = component_height_top + ceiling_thickness + pcb_thickness;
 total_case_length = case_outer_length + bnc_extension;
 
 // PCB ledge parameters
@@ -129,8 +132,59 @@ fw_hole_diameter = 2.032;         // M2 clearance holes in PCB
 // Standoff parameters (sized for M2 screws)
 standoff_diameter = 5;
 standoff_hole_diameter = 2.6;     // M2 clearance hole - oversized for FDM shrinkage
-standoff_height = component_height_bottom + 0.3;  // Height to support PCB (+0.3mm margin so PCB doesn't rub lid)
+standoff_height = component_height_bottom;  // Height to support PCB at shell interface
 pcb_bnc_offset = 0.8;             // Extra clearance between PCB/standoffs and BNC end (mm)
+
+/* [Shell Interlocking] */
+// Lip height extending above bottom shell edge (mm)
+// Must be less than pcb_rail_z_offset to clear top shell support ribs
+lip_height = 1.5;
+// Lip wall thickness (mm)
+lip_thickness = 1.5;
+// Clearance between lip and top shell inner wall (mm)
+lip_clearance = 0.3;
+
+// Module: Interlocking lip for bottom shell (excludes BNC end)
+// Creates a thin wall rising from the inner perimeter to fit inside top shell
+module interlocking_lip() {
+    // Inner dimensions where lip attaches (inset by lip_clearance for fit)
+    inner_x_start = wall + lip_clearance;
+    inner_x_end = wall + case_inner_length - lip_clearance;  // Stop before BNC extension
+    inner_y_start = wall + lip_clearance;
+    inner_y_end = wall + case_inner_width - lip_clearance;
+    inner_radius = corner_radius - wall/2;
+
+    // Lip rises from top of bottom shell
+    translate([0, 0, case_height_bottom]) {
+        difference() {
+            // Outer boundary of lip (inset from cavity walls by lip_clearance)
+            hull() {
+                for (x = [inner_x_start + inner_radius, inner_x_end - inner_radius]) {
+                    for (y = [inner_y_start + inner_radius, inner_y_end - inner_radius]) {
+                        translate([x, y, 0])
+                            cylinder(r = inner_radius, h = lip_height);
+                    }
+                }
+            }
+
+            // Inner cutout (lip_thickness inward from outer boundary)
+            translate([0, 0, -0.1])
+            hull() {
+                for (x = [inner_x_start + inner_radius + lip_thickness, inner_x_end - inner_radius - lip_thickness]) {
+                    for (y = [inner_y_start + inner_radius + lip_thickness, inner_y_end - inner_radius - lip_thickness]) {
+                        translate([x, y, 0])
+                            cylinder(r = inner_radius, h = lip_height + 0.2);
+                    }
+                }
+            }
+
+            // Cut off BNC end - remove lip from BNC wall area
+            // Cut starts where the main case inner length ends (before BNC extension)
+            translate([inner_x_end - inner_radius - 1, -1, -0.1])
+                cube([inner_radius + bnc_extension + wall + 2, case_outer_width + 2, lip_height + 0.2]);
+        }
+    }
+}
 
 // Module: Rounded box with optional edge chamfer
 module rounded_box(length, width, height, radius, chamfer = 0) {
@@ -218,6 +272,9 @@ module bottom_shell() {
             }
         }
     }
+
+    // Interlocking lip (extends into top shell for alignment)
+    interlocking_lip();
 }
 
 // Module: Top shell
@@ -227,10 +284,10 @@ module top_shell() {
             // Main body with chamfered top edge for clean printing
             rounded_box(total_case_length, case_outer_width, case_height_top, corner_radius, edge_chamfer);
 
-        // Inner cavity
+        // Inner cavity (ceiling_thickness at top, walls on sides)
         translate([wall, wall, -0.1])
             rounded_box(case_inner_length + bnc_extension, case_inner_width,
-                       case_height_top - wall + 0.1, corner_radius - wall/2);
+                       case_height_top - ceiling_thickness + 0.1, corner_radius - wall/2);
 
         // USB-C port cutout with rounded corners (sharp corners crack when printing)
         // usb_offset_z is measured from PCB bottom surface
@@ -246,9 +303,9 @@ module top_shell() {
         // M2 screw holes (aligned with standoffs/PCB mounting holes)
         for (pos = standoff_positions()) {
             // Shaft clearance hole through ceiling
-            translate([pos[0], pos[1], case_height_top - wall - 0.1])
-                cylinder(d = screw_hole_diameter, h = wall + 0.2);
-            // Counterbore for pan head (2mm head height + 0.5mm recess)
+            translate([pos[0], pos[1], case_height_top - ceiling_thickness - 0.1])
+                cylinder(d = screw_hole_diameter, h = ceiling_thickness + 0.2);
+            // Counterbore for pan head (2mm head height, leaves 1.5mm shelf with 3.5mm ceiling)
             translate([pos[0], pos[1], case_height_top - counterbore_depth])
                 cylinder(d = counterbore_diameter, h = counterbore_depth + 0.1);
         }
@@ -274,13 +331,13 @@ module top_shell() {
             translate([pcb_rail_start, wall - 1, pcb_rail_z_offset])
                 cube([pcb_rail_length,
                       pcb_support_width + 1,
-                      case_height_top - wall - pcb_rail_z_offset]);
+                      case_height_top - ceiling_thickness - pcb_rail_z_offset]);
             // Right rib (high Y side) - wall to ceiling, presses down on PCB
             translate([pcb_rail_start,
                       case_outer_width - wall - pcb_support_width, pcb_rail_z_offset])
                 cube([pcb_rail_length,
                       pcb_support_width + 1,
-                      case_height_top - wall - pcb_rail_z_offset]);
+                      case_height_top - ceiling_thickness - pcb_rail_z_offset]);
         }
 
         // BNC-side support ribs (between BNC cutout and screw holes)
@@ -292,14 +349,14 @@ module top_shell() {
                       pcb_rail_z_offset])
                 cube([bnc_post_inset_x + 1,  // +1 to merge with wall
                       bnc_post_diameter,
-                      case_height_top - wall - pcb_rail_z_offset]);
+                      case_height_top - ceiling_thickness - pcb_rail_z_offset]);
             // Rib near high Y side - connects wall to ceiling
             translate([total_case_length - wall - bnc_post_inset_x,
                       case_outer_width - bnc_post_inset_y - bnc_post_diameter/2,
                       pcb_rail_z_offset])
                 cube([bnc_post_inset_x + 1,  // +1 to merge with wall
                       bnc_post_diameter,
-                      case_height_top - wall - pcb_rail_z_offset]);
+                      case_height_top - ceiling_thickness - pcb_rail_z_offset]);
         }
     } // end union
 }
