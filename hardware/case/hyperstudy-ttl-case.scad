@@ -31,11 +31,11 @@ component_height_bottom = 5;
 /* [Case Parameters] */
 // Wall thickness (mm)
 wall = 2.5;
-// Floor thickness (mm) - 6mm for solid bridging over nut pockets (3.5mm solid above pocket)
-floor_thickness = 6;
+// Floor thickness (mm) - 7mm for solid bridging over nut pockets (4.5mm solid above pocket)
+floor_thickness = 7;
 // Top shell ceiling thickness (mm) - needs enough material for counterbore + shaft shelf
-// For M2 pan head: 2mm counterbore + 1.5mm shelf = 3.5mm minimum
-ceiling_thickness = 3.5;
+// For M2 pan head: 2mm counterbore + 2.5mm shelf = 4.5mm minimum
+ceiling_thickness = 4.5;
 // PCB clearance on each side (mm) - increased to accommodate support ribs
 pcb_clearance = 1.5;
 // Corner radius (mm)
@@ -139,25 +139,26 @@ pcb_bnc_offset = 0.8;             // Extra clearance between PCB/standoffs and B
 // Lip height extending above bottom shell edge (mm)
 // Must be less than pcb_rail_z_offset to clear top shell support ribs
 lip_height = 1.5;
-// Lip wall thickness (mm)
-lip_thickness = 1.5;
+// Lip wall thickness (mm) - reduced from 1.5 to provide 0.3mm clearance to PCB edge
+lip_thickness = 1.2;
 // Clearance between lip and top shell inner wall (mm)
 lip_clearance = 0.3;
 
 // Module: Interlocking lip for bottom shell (excludes BNC end)
 // Creates a thin wall rising from the inner perimeter to fit inside top shell
 module interlocking_lip() {
-    // Inner dimensions where lip attaches (inset by lip_clearance for fit)
-    inner_x_start = wall + lip_clearance;
+    // Inner dimensions where lip attaches (flush with cavity wall for printability)
+    // lip_clearance is applied to the TOP shell's cavity, not here
+    inner_x_start = wall;
     inner_x_end = wall + case_inner_length - lip_clearance;  // Stop before BNC extension
-    inner_y_start = wall + lip_clearance;
-    inner_y_end = wall + case_inner_width - lip_clearance;
+    inner_y_start = wall;
+    inner_y_end = wall + case_inner_width;
     inner_radius = corner_radius - wall/2;
 
     // Lip rises from top of bottom shell
     translate([0, 0, case_height_bottom]) {
         difference() {
-            // Outer boundary of lip (inset from cavity walls by lip_clearance)
+            // Outer boundary of lip (flush with cavity walls for printability)
             hull() {
                 for (x = [inner_x_start + inner_radius, inner_x_end - inner_radius]) {
                     for (y = [inner_y_start + inner_radius, inner_y_end - inner_radius]) {
@@ -273,8 +274,8 @@ module bottom_shell() {
         }
     }
 
-    // Interlocking lip (extends into top shell for alignment)
-    interlocking_lip();
+    // Interlocking lip disabled - geometry issues with FDM printing
+    // interlocking_lip();
 }
 
 // Module: Top shell
