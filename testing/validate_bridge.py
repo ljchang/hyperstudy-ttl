@@ -109,8 +109,58 @@ def validate_bridge_protocol(port):
         else:
             print("  ⚠ WARNING - TEST command not supported or wrong format")
 
-        # Test 5: Invalid command handling
-        print("\nTest 5: Error handling")
+        # Test 5: PULSE with duration parameter
+        print("\nTest 5: PULSE with inline duration")
+        print("  Command: b'PULSE 5\\n' (5ms pulse)")
+        ser.reset_input_buffer()
+        ser.write(b"PULSE 5\n")
+        time.sleep(0.02)
+        response = ser.readline().decode('utf-8', errors='ignore').strip()
+        print(f"  Response: '{response}'")
+
+        if response == "OK:Pulse sent":
+            print("  ✓ PASS - PULSE with duration accepted")
+        else:
+            print("  ✗ FAIL - PULSE with duration not supported")
+            all_passed = False
+
+        # Test 6: TIMING command
+        print("\nTest 6: TIMING command (on-device latency)")
+        print("  Command: b'TIMING\\n'")
+        ser.reset_input_buffer()
+        ser.write(b"TIMING\n")
+        time.sleep(0.02)
+        response = ser.readline().decode('utf-8', errors='ignore').strip()
+        print(f"  Response: '{response}'")
+
+        if response.startswith("OK:Timing us:"):
+            print("  ✓ PASS - TIMING command supported")
+            # Parse the timing value
+            try:
+                us_str = response.split("us:")[1].split(",")[0]
+                print(f"  Last pulse serial-to-GPIO latency: {us_str} µs")
+            except (IndexError, ValueError):
+                print("  ⚠ WARNING - Could not parse timing value")
+        else:
+            print("  ⚠ WARNING - TIMING command not supported (firmware < 1.4.0)")
+
+        # Test 7: SERIAL command
+        print("\nTest 7: SERIAL command (unique board ID)")
+        print("  Command: b'SERIAL\\n'")
+        ser.reset_input_buffer()
+        ser.write(b"SERIAL\n")
+        time.sleep(0.02)
+        response = ser.readline().decode('utf-8', errors='ignore').strip()
+        print(f"  Response: '{response}'")
+
+        if response.startswith("OK:Serial "):
+            board_serial = response.replace("OK:Serial ", "").strip()
+            print(f"  ✓ PASS - Board serial: {board_serial}")
+        else:
+            print("  ⚠ WARNING - SERIAL command not supported (firmware < 1.4.0)")
+
+        # Test 8: Invalid command handling
+        print("\nTest 8: Error handling")
         print("  Command: b'INVALID\\n'")
         ser.reset_input_buffer()
         ser.write(b"INVALID\n")
@@ -249,7 +299,7 @@ def main():
         print("\nTroubleshooting:")
         print("1. Reflash the firmware (see INSTALLATION.md)")
         print("2. Verify you're using the primary PlatformIO firmware")
-        print("3. Check that firmware version is 1.0.0 or later")
+        print("3. Check that firmware version is 1.4.0 or later")
         sys.exit(1)
 
 

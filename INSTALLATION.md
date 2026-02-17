@@ -11,7 +11,7 @@ HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this device) → T
 **Data Flow:**
 1. **TriggerComponent** (in HyperStudy experiment) sends trigger request
 2. **hyperstudy-bridge** receives request via WebSocket and forwards to RP2040 via USB serial
-3. **RP2040** (this firmware) sends 10ms TTL pulse on GPIO Pin 5
+3. **RP2040** (this firmware) sends TTL pulse on GPIO Pin 6 (D4) with configurable duration (default 10ms)
 4. **Optocoupler** (HCPL-2211) provides electrical isolation to external equipment
 
 ## Hardware Requirements
@@ -74,8 +74,11 @@ Install PlatformIO:
    The device should appear as a USB serial port and display:
    ```
    RP2040 TTL Trigger Ready
-   Firmware Version: 1.0.0
-   Send 'PULSE' to trigger TTL pulse
+   Firmware Version: 1.4.0
+   Serial: <unique hex ID>
+   Trigger Pin: GP6
+   Default Pulse Duration: 10ms
+   Commands: PULSE [ms], SETDURATION <ms>, TIMING, TEST, VERSION, SERIAL
    ```
 
 ### Test the Firmware
@@ -87,11 +90,15 @@ pio device monitor
 ```
 
 **Test commands:**
-- `PULSE` or `pulse` → Triggers 10ms TTL pulse, responds with `OK:Pulse sent`
+- `PULSE` or `pulse` → Triggers TTL pulse (default 10ms), responds with `OK:Pulse sent`
+- `PULSE 5` → Triggers 5ms TTL pulse, responds with `OK:Pulse sent`
+- `SETDURATION 20` → Sets default pulse duration to 20ms
+- `TIMING` → Reports last pulse timing (serial-to-GPIO latency in µs)
 - `TEST` or `test` → Connection test, responds with `OK:Test successful`
-- `VERSION` → Returns firmware version, responds with `OK:Version 1.0.0`
+- `VERSION` → Returns firmware version, responds with `OK:Version 1.4.0`
+- `SERIAL` → Reports unique board serial number
 
-**Expected behavior:** GPIO Pin 5 LED should flash briefly when you send `PULSE`.
+**Expected behavior:** GPIO Pin 6 (D4) LED should flash briefly when you send `PULSE`.
 
 ## Part 3: Integration with hyperstudy-bridge
 
@@ -239,17 +246,25 @@ python testing/validate_bridge.py
 
 ### Changing Pulse Duration
 
-Edit `firmware/src/main.cpp`:
+Pulse duration can be configured at runtime without reflashing:
 
+**Via serial command (temporary, until reboot):**
+```
+SETDURATION 20
+```
+
+**Via inline parameter (per-pulse):**
+```
+PULSE 20
+```
+
+**Via hyperstudy-bridge:** Configure `pulse_duration_ms` in the TTL device settings. The bridge sends the duration with each PULSE command.
+
+**Permanently (in firmware):** Edit `firmware/src/main.cpp`:
 ```cpp
-#define PULSE_DURATION_MS 10  // Change to desired duration in milliseconds
+#define DEFAULT_PULSE_DURATION_MS 10  // Change default duration in milliseconds
 ```
-
-Then rebuild and upload:
-```bash
-cd firmware
-pio run --target upload
-```
+Then rebuild and upload: `cd firmware && pio run --target upload`
 
 ### Using Alternative Firmware
 

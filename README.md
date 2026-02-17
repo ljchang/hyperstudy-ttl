@@ -8,7 +8,7 @@ RP2040-based TTL pulse generator for HyperStudy experiments with electrical isol
 HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) → TTL Output
 ```
 
-This repository contains the **RP2040 firmware** that receives trigger commands from [hyperstudy-bridge](https://github.com/cosanlab/hyperstudy-bridge) and generates electrically-isolated 10ms TTL pulses for external equipment.
+This repository contains the **RP2040 firmware** that receives trigger commands from [hyperstudy-bridge](https://github.com/cosanlab/hyperstudy-bridge) and generates electrically-isolated TTL pulses (configurable duration, default 10ms) for external equipment.
 
 ## Features
 
@@ -32,7 +32,7 @@ pio run --target upload
 pio device monitor
 ```
 
-Type `PULSE` and press Enter. The device should respond with `OK:Pulse sent`.
+Type `PULSE` and press Enter. The device should respond with `OK:Pulse sent`. Each device reports its unique serial number on startup.
 
 ### 3. Full Setup
 
@@ -46,7 +46,7 @@ See **[INSTALLATION.md](./INSTALLATION.md)** for complete instructions including
 
 - **Microcontroller:** Adafruit Feather RP2040
 - **Optocoupler:** HCPL-2211 (for isolation)
-- **Pulse Output:** GPIO Pin 5 (10ms HIGH pulse)
+- **Pulse Output:** GPIO Pin 6 / D4 (configurable duration, default 10ms HIGH pulse)
 - **Communication:** USB serial, 115200 baud
 - **USB Identification:** VID: `0x239A`, PID: `0x80F1`
 
@@ -58,9 +58,14 @@ The firmware accepts case-insensitive serial commands:
 
 | Command | Response | Description |
 |---------|----------|-------------|
-| `PULSE` | `OK:Pulse sent` | Triggers 10ms TTL pulse |
+| `PULSE` | `OK:Pulse sent` | Triggers TTL pulse (default duration) |
+| `PULSE <ms>` | `OK:Pulse sent` | Triggers TTL pulse with specified duration |
+| `SETDURATION <ms>` | `OK:Duration set to <ms>ms` | Sets default pulse duration (1-10000ms) |
+| `TIMING` | `OK:Timing us:<N>,dur:<ms>` | Reports last pulse timing (serial-to-GPIO, µs) |
 | `TEST` | `OK:Test successful` | Connection validation |
-| `VERSION` | `OK:Version 1.0.2` | Firmware version query |
+| `VERSION` | `OK:Version 1.4.0` | Firmware version query |
+| `SERIAL` | `OK:Serial <hex>` | Reports unique board serial number |
+| `LONGPULSE` | `OK:Long pulse sent` | Triggers 3-second pulse for testing |
 
 ## Device Discovery
 

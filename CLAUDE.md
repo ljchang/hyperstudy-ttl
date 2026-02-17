@@ -15,8 +15,8 @@ HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) →
 
 1. **TriggerComponent** (Svelte component in HyperStudy frontend) sends trigger request
 2. **hyperstudy-bridge** (Tauri app) receives WebSocket message on port 9000
-3. **Bridge TtlDevice** sends `b"PULSE\n"` via USB serial (115200 baud)
-4. **RP2040 firmware** (this repo) sets GPIO Pin 6 (D4) HIGH for 10ms
+3. **Bridge TtlDevice** sends `PULSE <duration_ms>\n` via USB serial (115200 baud)
+4. **RP2040 firmware** (this repo) sets GPIO Pin 6 (D4) HIGH for the specified duration (default 10ms)
 5. **HCPL-2211 optocoupler** provides electrical isolation to external equipment
 
 ### Primary Firmware (firmware/src/main.cpp)
@@ -25,16 +25,23 @@ HyperStudy TriggerComponent → hyperstudy-bridge → RP2040 (this firmware) →
 
 **Key specifications:**
 - GPIO Pin 6 (D4 on Feather RP2040) for TTL output
-- Signal logic: LOW = off, HIGH = pulse active (10ms)
+- Signal logic: LOW = off, HIGH = pulse active (configurable duration, default 10ms)
 - USB serial: 115200 baud, newline-terminated commands
 - Response format: `OK:Message` (success) or `ERROR:Message` (failure)
 - USB identification: VID `0x239A`, PID `0x80F1` (for device discovery)
 
 **Supported commands:**
-- `PULSE` (case-insensitive) → Triggers 10ms pulse, responds `OK:Pulse sent`
+- `PULSE [ms]` (case-insensitive) → Triggers pulse (optional inline duration), responds `OK:Pulse sent`
+- `SETDURATION <ms>` → Sets default pulse duration (1-10000ms), responds `OK:Duration set to <ms>ms`
+- `TIMING` → Reports last pulse timing in µs (serial-available to GPIO toggle), responds `OK:Timing us:<N>,dur:<ms>`
 - `LONGPULSE` → Triggers 3-second pulse for testing/visibility, responds `OK:Long pulse sent`
 - `TEST` → Connection test, responds `OK:Test successful`
-- `VERSION` → Returns firmware version, responds `OK:Version 1.3.0`
+- `VERSION` → Returns firmware version, responds `OK:Version 1.4.0`
+- `SERIAL` → Returns unique board serial number, responds `OK:Serial <hex>`
+
+**USB serial number:**
+- Each board auto-generates a unique USB serial descriptor from its flash chip ID (no hardcoded serial)
+- Allows the bridge to distinguish multiple TTL devices plugged in simultaneously
 
 **Bridge compatibility requirements:**
 - Response format MUST match `OK:` prefix (bridge parses this)
@@ -82,8 +89,9 @@ README.md              # Project overview
 
 ### When Modifying Firmware
 - **Maintain bridge compatibility**: Response format `OK:` prefix is critical
-- **Preserve timing**: 10ms pulse duration is standard for lab equipment
-- **Keep latency low**: <1ms round-trip for scientific accuracy
+- **Preserve timing**: Default 10ms pulse duration is standard for lab equipment; duration is now configurable
+- **Keep latency low**: <1ms round-trip for scientific accuracy (no delay() in polling loop)
+- **Unique serial numbers**: Do not hardcode USB_SERIAL; the TinyUSB library auto-generates from flash chip ID
 - **Test with bridge**: Don't just test serial commands, verify bridge integration
 
 ### Signal Logic
